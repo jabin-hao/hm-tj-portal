@@ -48,7 +48,7 @@ const formRef = ref();
 const checked = ref(false)
 // 登录参数效验
 const fromData = reactive({
-  username: "18810966208",
+  username: "13165982930",
   password: "123456",
   type: 1
 });
@@ -64,33 +64,58 @@ const rules = reactive({
 // 登录
 const submitForm = (formEl) => {
   if (!formEl) return;
+  console.log("login")
   formEl.validate(async (valid) => {
     if (valid) {
       // 提交登录
       await userLogins(fromData)
 			.then(async res => {
-				if (res.code === 200) {
+        console.log("res: ",res)
+        // 判断返回是否是token字符串（登录成功）或对象（登录失败）
+				if (typeof res === 'string' || res.code === 200) {
+          console.log('登录成功，开始设置token')
           // 用户token写入 pinia
-					store.setToken(res.data);
+          const token = typeof res === 'string' ? res : res.data;
+					await store.setToken(token);
+          console.log('token已设置，开始获取用户信息')
+          console.log('sessionStorage中的token:', sessionStorage.getItem('token'))
 					// 获取用户信息
-          const data = await getUserInfo()
-          if (data.code === 200) {
-              // 记录到store 并调转到首页
-              store.setUserInfo(data.data)
-					    // 跳转到首页
-              router.push('/main/index')
+          try {
+            const data = await getUserInfo()
+            console.log('用户信息返回：', data)
+            if (data && data.code === 200) {
+                console.log('用户信息获取成功，准备跳转')
+                // 记录到store 并调转到首页
+                await store.setUserInfo(data.data)
+                // 跳转到首页
+                const result = await router.push('/main/index')
+                console.log('跳转结果：', result)
+            } else {
+                console.log('获取用户信息失败：', data)
+                ElMessage({
+                    message: data?.msg || '获取用户信息失败',
+                    type: 'error'
+                });
+            }
+          } catch (error) {
+            console.error('获取用户信息异常：', error)
+            ElMessage({
+                message: '获取用户信息异常：' + (error.message || error),
+                type: 'error'
+            });
           }
 				} else {
           ElMessage({
-              message: res.msg,
+              message: res.msg || '登录失败',
               type: 'error'
           });
 					console.log('登录失败')
 				}
 			})
 			.catch(err => {
+        console.error('登录请求出错：', err)
         ElMessage({
-          message: err,
+          message: err.message || err,
           type: 'error'
         });
       });

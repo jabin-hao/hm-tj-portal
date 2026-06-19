@@ -28,6 +28,7 @@ router.beforeEach(async (to, from, next) => {
     }
     if (to.path !== '/login'){
       next();
+      return;
     }
     // token 存在 进入下一页
     // const { roles } = userStore;

@@ -23,7 +23,7 @@ export default defineConfig((mode) => {
       svgLoader()
     ],
     server: {
-      port: 18082,
+      port: 3000,
       host: '0.0.0.0',
       proxy: {
         '/img-tx': {
