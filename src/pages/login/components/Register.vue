@@ -12,135 +12,137 @@
         <el-input v-model="fromData.cellPhone" placeholder="请输入手机号" />
       </el-form-item>
       <el-form-item prop="password" label="">
-        <el-input v-model="fromData.password" placeholder="请输入密码" />
+        <el-input type="password" show-password v-model="fromData.password" placeholder="请输入密码" />
       </el-form-item>
       <el-form-item prop="code" label="">
         <div class="fx-sb">
-          <el-input v-model="fromData.code" placeholder="请确认短信验证码" />
-          <span class="bt bt-grey" @click="verifycodeHandle">发送验证码</span> 
+          <el-input v-model="fromData.code" placeholder="请输入短信验证码" />
+          <span class="bt bt-grey" :class="{ disabled: isSending }" @click="verifycodeHandle">
+            {{ isSending ? `${countdown}s` : "发送验证码" }}
+          </span>
         </div>
       </el-form-item>
       <el-form-item class="marg-bt-15">
         <div class="bt" @click="submitForm(formRef)">注册</div>
       </el-form-item>
     </el-form>
-    <div class="font-bt text-center" @click="goLogin()">
-        去登录
+    <div class="font-bt text-center" @click="goLogin">
+      去登录
     </div>
   </div>
 </template>
+
 <script setup>
-import { reactive, ref } from "vue";
-import { useRouter } from 'vue-router'
+import { onBeforeUnmount, reactive, ref } from "vue"
 import { userRegist, verifycode } from "@/api/user"
-import { useUserStore } from '@/store'
-import { ElMessage } from "element-plus";
+import { ElMessage } from "element-plus"
 
-const store = useUserStore();
-const router = useRouter()
-
-const emit = defineEmits(['goHandle'])
-// 登录数据初始化
-const formRef = ref();
+const emit = defineEmits(["goHandle"])
+const formRef = ref()
 const fromData = reactive({
   cellPhone: "",
   password: "",
   code: "123456"
-});
-// 手机号效验
-const verifyPone = (rull, value, callback) => {
-  const reg = /^(13[0-9]|14[01456879]|15[0-35-9]|16[2567]|17[0-8]|18[0-9]|19[0-35-9])\d{8}$/
-  if (value == '') {
-    callback(new Error('请输入手机号'));
-  } else if(!reg.test(value)){
-    callback(new Error('请输入正确的手机号'));
+})
+const isSending = ref(false)
+const countdown = ref(0)
+let countdownTimer
+
+const phonePattern = /^(13[0-9]|14[01456879]|15[0-35-9]|16[2567]|17[0-8]|18[0-9]|19[0-35-9])\d{8}$/
+
+const verifyPhone = (rule, value, callback) => {
+  if (!value) {
+    callback(new Error("请输入手机号"))
+    return
+  }
+  if (!phonePattern.test(value)) {
+    callback(new Error("请输入正确的手机号"))
+    return
   }
   callback()
 }
-// 效验
+
 const rules = reactive({
-  cellPhone: [
-    { validator: verifyPone, trigger: "blur" },
-  ],
-  password: [
-    { required: true, message: "请输入密码", trigger: "blur"},
-  ],
-  code: [
-    { required: true, message: "请输入短信验证码", trigger: "blur"},
-  ],
-});
-// 发送验证码
-// const isSend = ref(true)
-const verifycodeHandle = async() => {
-  const reg = /^(13[0-9]|14[01456879]|15[0-35-9]|16[2567]|17[0-8]|18[0-9]|19[0-35-9])\d{8}$/
-  if (fromData.cellPhone == "" || !reg.test(fromData.cellPhone)){
-    ElMessage({
-              message: '请输入正确的手机号',
-              type: 'error'
-          });
-    return 
+  cellPhone: [{ validator: verifyPhone, trigger: "blur" }],
+  password: [{ required: true, message: "请输入密码", trigger: "blur" }],
+  code: [{ required: true, message: "请输入短信验证码", trigger: "blur" }]
+})
+
+const verifycodeHandle = async () => {
+  if (!phonePattern.test(fromData.cellPhone)) {
+    ElMessage({ message: "请输入正确的手机号", type: "error" })
+    return
   }
-  // 发送验证码
-  await verifycode({cellPhone:fromData.cellPhone})
-			.then(async res => {
-				if (res.code == 200) {
-					ElMessage({
-              message: '验证码发送成功',
-              type: 'success'
-          });
-				} else {
-          ElMessage({
-              message: res.msg,
-              type: 'error'
-          });
-					console.log('登录失败')
-				}
-			})
-			.catch(err => {});
-}
-// 注册
-const submitForm = (formEl) => {
-  if (!formEl) return;
-  formEl.validate( async (valid) => {
-    if (valid) {
-      // 提交注册 
-      await userRegist(fromData)
-			.then(async res => {
-				if (res.code == 200) {
-					ElMessage({
-              message: '注册成功！请登录',
-              type: 'success'
-          });
-          setTimeout(() => {
-            emit('goHandle', 'pass')
-          }, 500)
-				} else {
-          ElMessage({
-              message: res.msg,
-              type: 'error'
-          });
-				}
-			})
-			.catch(err => {});
+  if (isSending.value) return
+
+  try {
+    const res = await verifycode({ cellPhone: fromData.cellPhone })
+    if (res?.code !== 200) {
+      ElMessage({ message: res?.msg || "验证码发送失败", type: "error" })
+      return
     }
-  });
-};
-// 去登陆
-const goLogin = () => {
-  emit('goHandle', 'pass')
+
+    ElMessage({ message: "验证码发送成功", type: "success" })
+    isSending.value = true
+    countdown.value = 60
+    countdownTimer = setInterval(() => {
+      countdown.value -= 1
+      if (countdown.value <= 0) {
+        clearInterval(countdownTimer)
+        isSending.value = false
+      }
+    }, 1000)
+  } catch (error) {
+    ElMessage({ message: error?.message || "验证码发送失败", type: "error" })
+  }
 }
+
+const submitForm = (formEl) => {
+  if (!formEl) return
+  formEl.validate(async (valid) => {
+    if (!valid) return
+
+    try {
+      const res = await userRegist(fromData)
+      if (res?.code !== 200) {
+        ElMessage({ message: res?.msg || "注册失败", type: "error" })
+        return
+      }
+
+      ElMessage({ message: "注册成功！请登录", type: "success" })
+      setTimeout(() => emit("goHandle", "pass"), 500)
+    } catch (error) {
+      ElMessage({ message: error?.message || "注册请求失败", type: "error" })
+    }
+  })
+}
+
+const goLogin = () => {
+  emit("goHandle", "pass")
+}
+
+onBeforeUnmount(() => {
+  if (countdownTimer) clearInterval(countdownTimer)
+})
 </script>
+
 <style lang="scss" scoped>
 .loginPass {
-    margin-top: 40px;
-    .fx-sb .bt{
-      position: absolute;
-      width: 80px;
-      height: 28px;
-      line-height: 28px;
-      font-size: 14px;
-      right: 10px;
-      top: 6px;
-    }
+  margin-top: 40px;
+
+  .fx-sb .bt {
+    position: absolute;
+    width: 80px;
+    height: 28px;
+    line-height: 28px;
+    font-size: 14px;
+    right: 10px;
+    top: 6px;
+  }
+
+  .disabled {
+    cursor: not-allowed;
+    opacity: .6;
+  }
 }
 </style>

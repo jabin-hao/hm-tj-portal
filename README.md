@@ -15,18 +15,20 @@
 #### 安装运行
 
 ``` bash
-## 安装依赖 
-npm install || yarn 
+## 安装依赖
+bun install
 
-## 启动项目 
+## 启动项目
 
-# 启动链接mock
-npm run dev
-# 启动链接测试环境
-npm run start
+# 启动本地开发环境，接口连接本地网关 http://127.0.0.1:10010
+bun run dev
+# 启动 mock 环境
+bun run start
+# 启动测试环境
+bun run dev:test
 
 ## 构建正式环境 - 打包 松松的环境打包 配置文件子啊config > proxy
-npm run build 
+bun run build
 
 ```
 #### 产品原型及设计
@@ -50,7 +52,7 @@ npm run build
 
 #### 运行环境 - 初始开发环境及工具
 
-- 项目开发环境: Mac + node: v17.8.0 + npm: 8.5.5 || pnpm: 6.32.8
+- 项目开发环境: Bun 1.3.14
 
 #### 项目结构
 ```html
